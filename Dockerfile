@@ -25,18 +25,15 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     --no-install-recommends
 
-# Instala Google Chrome estable
-RUN wget -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+# Instala Google Chrome versión 114 (estable y con ChromeDriver disponible)
+RUN wget -O /tmp/chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.90-1_amd64.deb && \
     apt-get install -y /tmp/chrome.deb && \
     rm /tmp/chrome.deb
 
-# Instala ChromeDriver que coincida con la versión de Chrome instalada
-RUN set -ex; \
-    CHROME_VERSION=$(/usr/bin/google-chrome --version | awk '{print $3}' | cut -d. -f1); \
-    DRIVER_VERSION=$(wget -qO- "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}"); \
-    wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip"; \
-    unzip /tmp/chromedriver.zip -d /usr/local/bin/; \
-    rm /tmp/chromedriver.zip; \
+# Instala ChromeDriver 114
+RUN wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip && \
+    unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
+    rm /tmp/chromedriver.zip && \
     chmod +x /usr/local/bin/chromedriver
 
 ENV CHROME_BIN=/usr/bin/google-chrome
