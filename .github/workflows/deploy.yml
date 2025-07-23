@@ -1,0 +1,35 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Deploy to VPS via SSH
+        env:
+          VPS_HOST: 69.62.107.86
+        run: |
+          ssh -o StrictHostKeyChecking=no root@$VPS_HOST "\
+            cd /root/rpa-couriers && \
+            git pull && \
+            docker build -t rpa-glovo-cron . && \
+            docker stop rpa-glovo-cron || true && \
+            docker rm rpa-glovo-cron || true && \
+            docker run -d --name rpa-glovo-cron \
+              -v /root/rpa-couriers-data/downloads:/app/downloads \
+              -v /root/rpa-couriers-data/logs:/logs \
+              rpa-glovo-cron
+          " 
