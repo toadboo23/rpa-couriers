@@ -31,11 +31,12 @@ RUN wget -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-sta
     rm /tmp/chrome.deb
 
 # Instala ChromeDriver que coincida con la versión de Chrome instalada
-RUN CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d. -f1) && \
-    DRIVER_VERSION=$(wget -qO- "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}") && \
-    wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip" && \
-    unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
-    rm /tmp/chromedriver.zip && \
+RUN set -ex; \
+    CHROME_VERSION=$(/usr/bin/google-chrome --version | awk '{print $3}' | cut -d. -f1); \
+    DRIVER_VERSION=$(wget -qO- "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}"); \
+    wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip"; \
+    unzip /tmp/chromedriver.zip -d /usr/local/bin/; \
+    rm /tmp/chromedriver.zip; \
     chmod +x /usr/local/bin/chromedriver
 
 ENV CHROME_BIN=/usr/bin/google-chrome
