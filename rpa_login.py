@@ -11,6 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import shutil
 
 # Configuración de logging persistente
 LOG_DIR = os.path.abspath("logs")
@@ -89,6 +90,8 @@ def login_glovo(email: str, password: str) -> str:
         }
         options.add_experimental_option("prefs", prefs)
         logger.info(f"Carpeta de descargas: {download_dir}")
+        chrome_path = shutil.which("chromium") or shutil.which("chromium-browser") or "/usr/bin/chromium"
+        options.binary_location = chrome_path
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         wait = WebDriverWait(driver, 20)
         logger.info("Navegando a la página de login de Glovo Fleet...")
