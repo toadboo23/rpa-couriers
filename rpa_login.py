@@ -90,7 +90,7 @@ def login_glovo(email: str, password: str) -> str:
         }
         options.add_experimental_option("prefs", prefs)
         logger.info(f"Carpeta de descargas: {download_dir}")
-        chrome_path = shutil.which("chromium") or shutil.which("chromium-browser") or "/usr/bin/chromium"
+        chrome_path = shutil.which("google-chrome") or shutil.which("chromium") or shutil.which("chromium-browser") or "/usr/bin/google-chrome"
         options.binary_location = chrome_path
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         wait = WebDriverWait(driver, 20)
