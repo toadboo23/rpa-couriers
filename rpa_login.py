@@ -8,6 +8,7 @@ import os
 import sys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from datetime import datetime
 
 
 def get_latest_file(download_dir):
@@ -17,11 +18,41 @@ def get_latest_file(download_dir):
     return max(files, key=os.path.getctime)
 
 
+def rename_file_with_timestamp(file_path):
+    """
+    Renombra el archivo agregando la hora actual en formato HH-MM-SS antes de la extensión.
+    Ejemplo: archivo.csv -> archivo_10-30-45.csv
+    """
+    if not file_path or not os.path.exists(file_path):
+        return None
+    
+    # Obtener la hora actual en formato HH-MM-SS
+    current_time = datetime.now().strftime("%H-%M-%S")
+    
+    # Separar nombre y extensión
+    file_dir = os.path.dirname(file_path)
+    file_name = os.path.basename(file_path)
+    name, ext = os.path.splitext(file_name)
+    
+    # Crear nuevo nombre con timestamp
+    new_name = f"{name}_{current_time}{ext}"
+    new_path = os.path.join(file_dir, new_name)
+    
+    # Renombrar el archivo
+    try:
+        os.rename(file_path, new_path)
+        print(f"[RPA] Archivo renombrado: {file_name} -> {new_name}")
+        return new_path
+    except Exception as e:
+        print(f"[RPA] Error al renombrar archivo: {e}")
+        return file_path
+
+
 def login_glovo(email: str, password: str) -> str:
     """
     Automatiza el login en https://fleet.glovoapp.com/login usando Selenium.
     Luego hace clic en el menú 'Couriers', en el botón 'Download CSV' de la página y en el botón 'Download CSV' dentro de la ventana modal.
-    Descarga el archivo en /downloads y lo sube a la carpeta pública de SharePoint indicada.
+    Descarga el archivo en /downloads, lo renombra con timestamp y lo sube a la carpeta pública de SharePoint indicada.
     Devuelve un mensaje de éxito o error.
     """
     driver = None
@@ -88,6 +119,12 @@ def login_glovo(email: str, password: str) -> str:
             return 'Error: No se encontró archivo descargado.'
         print(f"[RPA] Último archivo descargado: {latest_file}")
 
+        # Renombrar archivo con timestamp
+        renamed_file = rename_file_with_timestamp(latest_file)
+        if not renamed_file:
+            print("[RPA] Error al renombrar el archivo.")
+            return 'Error: No se pudo renombrar el archivo.'
+
         # --- SUBIDA A SHAREPOINT ---
         sharepoint_url = "https://consultingsallent-my.sharepoint.com/:f:/g/personal/nmartinez_solucioning_net/Eh0WmhGIq2tPsF5pN8SJXPEB2kEsn0oVZtftapuN0gJUEA?e=z6cXKf"
         print("[RPA] Abriendo nueva pestaña para SharePoint...")
@@ -111,18 +148,21 @@ def login_glovo(email: str, password: str) -> str:
         # Seleccionar archivo (input type=file)
         print("[RPA] Buscando input de archivos y subiendo el archivo...")
         file_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='file']")))
-        file_input.send_keys(latest_file)
+        file_input.send_keys(renamed_file)
         print("[RPA] Archivo enviado. Esperando confirmación de subida...")
         time.sleep(8)  # Espera para que la subida se complete
 
-        print(f"[RPA] Archivo {os.path.basename(latest_file)} subido exitosamente a SharePoint.")
-        return f'Archivo descargado y subido exitosamente a SharePoint: {os.path.basename(latest_file)}'
+        print(f"[RPA] Archivo {os.path.basename(renamed_file)} subido exitosamente a SharePoint.")
+        return f'Archivo descargado, renombrado y subido exitosamente a SharePoint: {os.path.basename(renamed_file)}'
     except Exception as e:
         print(f"[RPA] Error durante el proceso: {e}")
         return f'Error durante el proceso: {e}'
     finally:
         if driver:
-            driver.quit()
+            try:
+                driver.quit()
+            except:
+                pass
         print("[RPA] Ejecución finalizada. Cerrando script.")
         sys.exit(0)
 
