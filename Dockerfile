@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     chromium-driver \
-    chromium
+    chromium \
+    cron
 
 # Instala dependencias de Python
 COPY requirements.txt .
@@ -15,8 +16,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 WORKDIR /app
 
-# Crea la carpeta de descargas
-RUN mkdir -p /app/downloads
+# Crea la carpeta de descargas y logs
+RUN mkdir -p /app/downloads /logs
 
-# Ejecuta el script principal
-CMD ["python", "rpa_login.py"] 
+# Copia el archivo de cron
+COPY mycron /etc/cron.d/mycron
+RUN chmod 0644 /etc/cron.d/mycron
+
+# Ejecuta cron en primer plano
+CMD ["cron", "-f"] 

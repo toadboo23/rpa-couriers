@@ -9,6 +9,28 @@ import sys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
+# Configuración de logging persistente
+LOG_DIR = os.path.abspath("logs")
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+LOG_FILE = os.path.join(LOG_DIR, "rpa.log")
+
+logger = logging.getLogger("RPA")
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+# Handler para archivo con rotación diaria y retención de 60 días
+file_handler = TimedRotatingFileHandler(LOG_FILE, when="midnight", interval=1, backupCount=60, encoding="utf-8")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# Handler para consola
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 
 def get_latest_file(download_dir):
@@ -25,26 +47,18 @@ def rename_file_with_timestamp(file_path):
     """
     if not file_path or not os.path.exists(file_path):
         return None
-    
-    # Obtener la hora actual en formato HH-MM-SS
     current_time = datetime.now().strftime("%H-%M-%S")
-    
-    # Separar nombre y extensión
     file_dir = os.path.dirname(file_path)
     file_name = os.path.basename(file_path)
     name, ext = os.path.splitext(file_name)
-    
-    # Crear nuevo nombre con timestamp
     new_name = f"{name}_{current_time}{ext}"
     new_path = os.path.join(file_dir, new_name)
-    
-    # Renombrar el archivo
     try:
         os.rename(file_path, new_path)
-        print(f"[RPA] Archivo renombrado: {file_name} -> {new_name}")
+        logger.info(f"Archivo renombrado: {file_name} -> {new_name}")
         return new_path
     except Exception as e:
-        print(f"[RPA] Error al renombrar archivo: {e}")
+        logger.error(f"Error al renombrar archivo: {e}")
         return file_path
 
 
@@ -57,7 +71,7 @@ def login_glovo(email: str, password: str) -> str:
     """
     driver = None
     try:
-        print("[RPA] Iniciando configuración de Selenium y carpeta de descargas...")
+        logger.info("Iniciando configuración de Selenium y carpeta de descargas...")
         download_dir = os.path.abspath("downloads")
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
@@ -70,92 +84,92 @@ def login_glovo(email: str, password: str) -> str:
             "safebrowsing.enabled": True
         }
         options.add_experimental_option("prefs", prefs)
-        print(f"[RPA] Carpeta de descargas: {download_dir}")
+        logger.info(f"Carpeta de descargas: {download_dir}")
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         wait = WebDriverWait(driver, 20)
-        print("[RPA] Navegando a la página de login de Glovo Fleet...")
+        logger.info("Navegando a la página de login de Glovo Fleet...")
         driver.get('https://fleet.glovoapp.com/login')
 
-        print("[RPA] Esperando campos de login...")
+        logger.info("Esperando campos de login...")
         time.sleep(2)
         email_input = driver.find_element(By.NAME, 'email')
         password_input = driver.find_element(By.NAME, 'password')
 
-        print("[RPA] Ingresando credenciales...")
+        logger.info("Ingresando credenciales...")
         email_input.clear()
         email_input.send_keys(email)
         password_input.clear()
         password_input.send_keys(password)
         password_input.send_keys(Keys.RETURN)
 
-        print("[RPA] Esperando respuesta de login...")
+        logger.info("Esperando respuesta de login...")
         time.sleep(5)
         if 'login' in driver.current_url:
-            print("[RPA] Error: No se pudo iniciar sesión. Verifica las credenciales.")
+            logger.error("No se pudo iniciar sesión. Verifica las credenciales.")
             return 'Error: No se pudo iniciar sesión. Verifica las credenciales.'
 
-        print("[RPA] Login exitoso. Buscando menú lateral...")
+        logger.info("Login exitoso. Buscando menú lateral...")
         time.sleep(3)
         couriers_menu = driver.find_element(By.XPATH, "//span[contains(@class, 'side-menu__item-label') and text()='Couriers']")
         couriers_menu.click()
 
-        print("[RPA] Esperando página de Couriers...")
+        logger.info("Esperando página de Couriers...")
         time.sleep(5)
         download_csv_btn = driver.find_element(By.XPATH, "//span[contains(@class, 'uds-button__content__label') and text()='Download CSV']")
-        print("[RPA] Haciendo clic en 'Download CSV' (página principal)...")
+        logger.info("Haciendo clic en 'Download CSV' (página principal)...")
         download_csv_btn.click()
 
-        print("[RPA] Esperando ventana modal de descarga...")
+        logger.info("Esperando ventana modal de descarga...")
         time.sleep(2)
         modal_download_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'modal')]//span[contains(@class, 'uds-button__content__label') and text()='Download CSV']")
-        print("[RPA] Haciendo clic en 'Download CSV' (modal)...")
+        logger.info("Haciendo clic en 'Download CSV' (modal)...")
         modal_download_btn.click()
 
-        print(f"[RPA] Proceso de descarga finalizado. Archivo guardado en: {download_dir}")
+        logger.info(f"Proceso de descarga finalizado. Archivo guardado en: {download_dir}")
         time.sleep(5)  # Espera extra para asegurar que el archivo se descargue
         latest_file = get_latest_file(download_dir)
         if not latest_file:
-            print("[RPA] No se encontró archivo descargado para subir a SharePoint.")
+            logger.error("No se encontró archivo descargado para subir a SharePoint.")
             return 'Error: No se encontró archivo descargado.'
-        print(f"[RPA] Último archivo descargado: {latest_file}")
+        logger.info(f"Último archivo descargado: {latest_file}")
 
         # Renombrar archivo con timestamp
         renamed_file = rename_file_with_timestamp(latest_file)
         if not renamed_file:
-            print("[RPA] Error al renombrar el archivo.")
+            logger.error("Error al renombrar el archivo.")
             return 'Error: No se pudo renombrar el archivo.'
 
         # --- SUBIDA A SHAREPOINT ---
         sharepoint_url = "https://consultingsallent-my.sharepoint.com/:f:/g/personal/nmartinez_solucioning_net/Eh0WmhGIq2tPsF5pN8SJXPEB2kEsn0oVZtftapuN0gJUEA?e=z6cXKf"
-        print("[RPA] Abriendo nueva pestaña para SharePoint...")
+        logger.info("Abriendo nueva pestaña para SharePoint...")
         driver.execute_script(f"window.open('{sharepoint_url}', '_blank');")
         driver.switch_to.window(driver.window_handles[-1])
-        print("[RPA] Esperando carga de SharePoint...")
+        logger.info("Esperando carga de SharePoint...")
         time.sleep(8)
 
         # Click en 'Cargar'
-        print("[RPA] Buscando y haciendo clic en 'Cargar'...")
+        logger.info("Buscando y haciendo clic en 'Cargar'...")
         cargar_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'text_cb8e3e55') and text()='Cargar']")))
         cargar_btn.click()
         time.sleep(2)
 
         # Click en 'Archivos' en la modal
-        print("[RPA] Buscando y haciendo clic en 'Archivos' en la modal...")
+        logger.info("Buscando y haciendo clic en 'Archivos' en la modal...")
         archivos_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'ms-ContextualMenu-itemText') and text()='Archivos']")))
         archivos_btn.click()
         time.sleep(2)
 
         # Seleccionar archivo (input type=file)
-        print("[RPA] Buscando input de archivos y subiendo el archivo...")
+        logger.info("Buscando input de archivos y subiendo el archivo...")
         file_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='file']")))
         file_input.send_keys(renamed_file)
-        print("[RPA] Archivo enviado. Esperando confirmación de subida...")
+        logger.info("Archivo enviado. Esperando confirmación de subida...")
         time.sleep(8)  # Espera para que la subida se complete
 
-        print(f"[RPA] Archivo {os.path.basename(renamed_file)} subido exitosamente a SharePoint.")
+        logger.info(f"Archivo {os.path.basename(renamed_file)} subido exitosamente a SharePoint.")
         return f'Archivo descargado, renombrado y subido exitosamente a SharePoint: {os.path.basename(renamed_file)}'
     except Exception as e:
-        print(f"[RPA] Error durante el proceso: {e}")
+        logger.error(f"Error durante el proceso: {e}")
         return f'Error durante el proceso: {e}'
     finally:
         if driver:
@@ -163,11 +177,11 @@ def login_glovo(email: str, password: str) -> str:
                 driver.quit()
             except:
                 pass
-        print("[RPA] Ejecución finalizada. Cerrando script.")
+        logger.info("Ejecución finalizada. Cerrando script.")
         sys.exit(0)
 
 if __name__ == "__main__":
     EMAIL = "hola@solucioning.net"
     PASSWORD = "Solucioning25+-."
     resultado = login_glovo(EMAIL, PASSWORD)
-    print(f"[RPA] Resultado: {resultado}") 
+    logger.info(f"Resultado: {resultado}") 
