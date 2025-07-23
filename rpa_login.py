@@ -76,6 +76,10 @@ def login_glovo(email: str, password: str) -> str:
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
         options = webdriver.ChromeOptions()
+        options.add_argument('--headless=new')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
         options.add_experimental_option('detach', True)
         prefs = {
             "download.default_directory": download_dir,
